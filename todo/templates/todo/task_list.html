@@ -1,0 +1,116 @@
+{% extends 'base.html' %}
+
+{% block title %}To-Do List{% endblock %}
+
+{% block content %}
+<section class="vh-100 body1">
+    <style>
+        .body1 {
+            background-color: black;
+        }
+    </style>
+    <div class="container py-5 h-100">
+        <div class="row d-flex justify-content-center align-items-center h-100">
+            <div class="col">
+                <div class="card" id="list1" style="border-radius: .75rem; background-color: #eff1f2;">
+                    <div class="card-body py-4 px-4 px-md-5">
+                        <p class="h1 text-center mt-3 mb-4 pb-3 text-primary">
+                            <i class="fas fa-check-square me-1"></i>
+                            <u style="text-decoration: none; color: black;">Django To-do List</u>
+                        </p>
+                        <div class="pb-2">
+                            <div class="card">
+                                <div class="card-body">
+                                    <div class="d-flex flex-row align-items-center">
+                                        <input type="hidden" id="csrf-token" value="{{ csrf_token }}">
+                                        <input type="text" class="form-control form-control-lg me-2" id="task-input" placeholder="Add new...">
+                                        <div class="d-flex">
+                                            <button style="height: 40px; width: 80px;" id="add-task-button" type="button" class="btn btn-dark me-1">Add</button>
+                                            <button style="height: 40px; width: 80px;" id="delete-last-task-button" type="button" class="btn btn-danger">Delete</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <ul id="task-list" class="list-group list-group-horizontal rounded-0 bg-transparent flex-column">
+                            {% for task in tasks %}
+                            <li class="list-group-item px-3 py-1 d-flex align-items-center flex-grow-1 border-0 bg-transparent" data-task-id="{{ task.id }}">
+                                <p class="lead fw-normal mb-0 bg-body-tertiary w-100 ms-n2 ps-2 py-1 rounded">{{ task.title }}</p>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const addButton = document.getElementById('add-task-button');
+        const taskInput = document.getElementById('task-input');
+        const taskList = document.getElementById('task-list');
+        const csrfToken = document.getElementById('csrf-token').value;
+        const deleteLastButton = document.getElementById('delete-last-task-button');
+
+        addButton.addEventListener('click', function () {
+            const taskTitle = taskInput.value.trim();
+            if (taskTitle) {
+                fetch('/add-task/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: new URLSearchParams({
+                        'title': taskTitle
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.message && data.task_id) {
+                        const newTask = document.createElement('li');
+                        newTask.className = "list-group-item px-3 py-1 d-flex align-items-center flex-grow-1 border-0 bg-transparent";
+                        newTask.setAttribute('data-task-id', data.task_id);
+                        newTask.innerHTML = `
+                            <p class="lead fw-normal mb-0 bg-body-tertiary w-100 ms-n2 ps-2 py-1 rounded">${taskTitle}</p>
+                        `;
+                        taskList.appendChild(newTask);
+                        taskInput.value = '';
+                    } else {
+                        alert(data.error || 'An error occurred.');
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+            } else {
+                alert('Task title cannot be empty!');
+            }
+        });
+
+        deleteLastButton.addEventListener('click', function () {
+            const lastTask = taskList.lastElementChild;
+            if (lastTask) {
+                const taskId = lastTask.getAttribute('data-task-id');
+                fetch(`/delete-task/${taskId}/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrfToken
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.message) {
+                        lastTask.remove();
+                    } else {
+                        alert(data.error || 'An error occurred.');
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+            } else {
+                alert('No tasks to delete!');
+            }
+        });
+    });
+</script>
+{% endblock %}
